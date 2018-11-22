@@ -6,23 +6,18 @@
   Csv output:
 
   ```bash
-  Running 5s test @ http://op.me
-    1 threads and 1 connections
-    Thread Stats   Avg      Stdev     Max   +/- Stdev
-      Latency    54.77us    8.43us 377.00us   91.03%
-      Req/Sec    16.67k   583.27    17.21k    94.12%
-    84583 requests in 5.10s, 19.65MB read
-  Requests/sec:  16587.25
-  Transfer/sec:      3.85MB
-
-
-  T,C,Mean-QPS,Mean-Latency,QPS,TP99%,TP90%,TP75%,TP50%,TPS
-  1,1,16.67k,54.77us,16.59k,91.00us,62.00us,54.00us,52.00us,3.85M
+  > ./wrk -t1 -c1 -d3s --csv http://op.me
+  URI,Threads,Connections,Duration,Mean-QPS,Mean-Latency,QPS,TP99%,TP90%,TP75%,TP50%,TPS
+  http://op.me,1,1,3s,16.80k,54.20us,16.72k,85.00us,59.00us,54.00us,52.00us,3.88M
+  > 
   ```
 
   Export to csv file:
 
-  ![wrk_csv.png](http://sunnymix-10052526.picsh.myqcloud.com/public/wrk_csv.png)
+  | URI          | Threads | Connections | Duration | Mean-QPS | Mean-Latency | QPS    | TP99%   | TP90%   | TP75%   | TP50%   | TPS   |
+  | ------------ | ------- | ----------- | -------- | -------- | ------------ | ------ | ------- | ------- | ------- | ------- | ----- |
+  | http://op.me | 1       | 1           | 3s       | 16.80k   | 54.20us      | 16.72k | 85.00us | 59.00us | 54.00us | 52.00us | 3.88M |
+
 
 ---
 
