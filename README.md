@@ -1,3 +1,16 @@
+
+# wrk with csv output
+
+Add csv output to wrk, which is more convenient for test reporting.
+
+---
+
+**This repo is forked from [https://github.com/wg/wrk](https://github.com/wg/wrk).**
+
+**The rest part of readme is orginal version from wg/wrk.**
+
+---
+
 # wrk - a HTTP benchmarking tool
 
   wrk is a modern HTTP benchmarking tool capable of generating significant
