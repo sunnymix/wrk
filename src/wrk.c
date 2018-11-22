@@ -102,7 +102,7 @@ static char *col_values(col *c) {
 
 static void col_print(col *c) {
     char *names = col_names(c), *values = col_values(c);
-    printf("%s\n%s\n", names, values);
+    printf("\n%s\n%s\n\n", names, values);
 }
 
 static col *col_new() {
