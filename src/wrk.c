@@ -13,6 +13,7 @@ static struct config {
     bool     delay;
     bool     dynamic;
     bool     latency;
+    bool     csv;
     char    *host;
     char    *script;
     SSL_CTX *ctx;
@@ -52,6 +53,7 @@ static void usage() {
            "    -H, --header      <H>  Add header to request      \n"
            "        --latency          Print latency statistics   \n"
            "        --timeout     <T>  Socket/request timeout     \n"
+           "        --csv              Print csv statistics       \n"
            "    -v, --version          Print version details      \n"
            "                                                      \n"
            "  Numeric arguments may include a SI unit (1k, 1M, 1G)\n"
@@ -100,7 +102,7 @@ static char *col_values(col *c) {
 
 static void col_print(col *c) {
     char *names = col_names(c), *values = col_values(c);
-    printf("\n\n%s\n%s\n\n", names, values);
+    printf("%s\n%s\n", names, values);
 }
 
 static col *col_new() {
@@ -233,8 +235,8 @@ int main(int argc, char **argv) {
     sigaction(SIGINT, &sa, NULL);
 
     char *time = format_time_s(cfg.duration);
-    printf("Running %s test @ %s\n", time, url);
-    printf("  %"PRIu64" threads and %"PRIu64" connections\n", cfg.threads, cfg.connections);
+    if (!cfg.csv) printf("Running %s test @ %s\n", time, url);
+    if (!cfg.csv) printf("  %"PRIu64" threads and %"PRIu64" connections\n", cfg.threads, cfg.connections);
 
     uint64_t start    = time_us();
     uint64_t complete = 0;
@@ -268,36 +270,39 @@ int main(int argc, char **argv) {
         stats_correct(statistics.latency, interval);
     }
 
-    print_stats_header();
-    print_stats("Latency", statistics.latency, format_time_us);
-    print_stats("Req/Sec", statistics.requests, format_metric);
-    if (cfg.latency) print_stats_latency(statistics.latency);
+    if (!cfg.csv) print_stats_header();
+    if (!cfg.csv) print_stats("Latency", statistics.latency, format_time_us);
+    if (!cfg.csv) print_stats("Req/Sec", statistics.requests, format_metric);
+    if (!cfg.csv && cfg.latency) print_stats_latency(statistics.latency);
 
     char *runtime_msg = format_time_us(runtime_us);
 
-    printf("  %"PRIu64" requests in %s, %sB read\n", complete, runtime_msg, format_binary(bytes));
+    if (!cfg.csv) printf("  %"PRIu64" requests in %s, %sB read\n", complete, runtime_msg, format_binary(bytes));
     if (errors.connect || errors.read || errors.write || errors.timeout) {
-        printf("  Socket errors: connect %d, read %d, write %d, timeout %d\n",
+        if (!cfg.csv) printf("  Socket errors: connect %d, read %d, write %d, timeout %d\n",
                errors.connect, errors.read, errors.write, errors.timeout);
     }
 
     if (errors.status) {
-        printf("  Non-2xx or 3xx responses: %d\n", errors.status);
+        if (!cfg.csv) printf("  Non-2xx or 3xx responses: %d\n", errors.status);
     }
 
-    printf("Requests/sec: %9.2Lf\n", req_per_s);
-    printf("Transfer/sec: %10sB\n", format_binary(bytes_per_s));
+    if (!cfg.csv) printf("Requests/sec: %9.2Lf\n", req_per_s);
+    if (!cfg.csv) printf("Transfer/sec: %10sB\n", format_binary(bytes_per_s));
 
-    // CSV Report
-    col *c = col_new();
-    col_add_u64(c, "T", cfg.threads);
-    col_add_u64(c, "C", cfg.connections);
-    col_add_stats_mean(c, "Mean-QPS", statistics.requests, format_metric);
-    col_add_stats_mean(c, "Mean-Latency", statistics.latency, format_time_us);
-    col_add(c, "QPS", format_metric(req_per_s));
-    col_add_latencies(c, statistics.latency);
-    col_add(c, "TPS", format_binary(bytes_per_s));
-    col_print(c);
+    if (cfg.csv) {
+        col *c = col_new();
+        col_add(c, "URI", url);
+        col_add_u64(c, "Threads", cfg.threads);
+        col_add_u64(c, "Connections", cfg.connections);
+        col_add(c, "Duration", time);
+        col_add_stats_mean(c, "Mean-QPS", statistics.requests, format_metric);
+        col_add_stats_mean(c, "Mean-Latency", statistics.latency, format_time_us);
+        col_add(c, "QPS", format_metric(req_per_s));
+        col_add_latencies(c, statistics.latency);
+        col_add(c, "TPS", format_binary(bytes_per_s));
+        col_print(c);
+    }
 
     if (script_has_done(L)) {
         script_summary(L, runtime_us, complete, bytes);
@@ -585,6 +590,7 @@ static struct option longopts[] = {
     { "timeout",     required_argument, NULL, 'T' },
     { "help",        no_argument,       NULL, 'h' },
     { "version",     no_argument,       NULL, 'v' },
+    { "csv",         no_argument,       NULL, 'z' },
     { NULL,          0,                 NULL,  0  }
 };
 
@@ -598,7 +604,7 @@ static int parse_args(struct config *cfg, char **url, struct http_parser_url *pa
     cfg->duration    = 10;
     cfg->timeout     = SOCKET_TIMEOUT_MS;
 
-    while ((c = getopt_long(argc, argv, "t:c:d:s:H:T:Lrv?", longopts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "t:c:d:s:z:H:T:Lrv?", longopts, NULL)) != -1) {
         switch (c) {
             case 't':
                 if (scan_metric(optarg, &cfg->threads)) return -1;
@@ -611,6 +617,9 @@ static int parse_args(struct config *cfg, char **url, struct http_parser_url *pa
                 break;
             case 's':
                 cfg->script = optarg;
+                break;
+            case 'z':
+                cfg->csv = true;
                 break;
             case 'H':
                 *header++ = optarg;
