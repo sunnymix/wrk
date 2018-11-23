@@ -96,8 +96,16 @@ static void csv_print(csv *c) {
 // csv
 
 static void csv_add_u64(csv *c, char *name, uint64_t value) {
-    char *val = (char *) malloc(11);
+    char *val = (char *) malloc(21);
     sprintf(val, "%"PRIu64"", value);
+    csv_add(c, name, val);
+    free(val);
+    val = NULL;
+}
+
+static void csv_add_u32(csv *c, char *name, uint32_t value) {
+    char *val = (char *) malloc(11);
+    sprintf(val, "%"PRIu32"", value);
     csv_add(c, name, val);
     free(val);
     val = NULL;
@@ -120,6 +128,14 @@ static void csv_add_latencies(csv *c, stats *stats) {
         free(name);
         name = NULL;
     }
+}
+
+static void csv_add_errors(csv *c, errors errs) {
+    csv_add_u32(c, "Error-Connect", errs.connect);
+    csv_add_u32(c, "Error-Read", errs.read);
+    csv_add_u32(c, "Error-Write", errs.write);
+    csv_add_u32(c, "Error-Timeout", errs.timeout);
+    csv_add_u32(c, "Error-Status!=2/3xx", errs.status);
 }
 
 // csv
@@ -267,6 +283,7 @@ int main(int argc, char **argv) {
         csv_add(c, "QPS", format_metric(req_per_s));
         csv_add_latencies(c, statistics.latency);
         csv_add(c, "TPS", format_binary(bytes_per_s));
+        csv_add_errors(c, errors);
         csv_print(c);
     }
 
