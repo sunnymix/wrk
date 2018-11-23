@@ -1,3 +1,28 @@
+
+# wrk with csv output
+
+  Add csv output to wrk, which is more convenient for test reporting.
+
+  Print csv statistics:
+
+  ```bash
+> wrk -t1 -c1 -d10s --csv http://op.me
+  URI, Threads, Connections, Duration, Mean-QPS, Mean-Latency, QPS, TP99%, TP90%, TP75%, TP50%, TPS
+  http://op.me, 1, 1, 10s, 16.63k, 58.10us, 16.54k, 82.00us, 58.00us, 54.00us, 53.00us, 3.84M
+  ```
+
+  Combine csv statistics to a file:
+
+![wrk_csv_combine.png](http://sunnymix-10052526.picsh.myqcloud.com/public/wrk_csv_combine.png)
+
+---
+
+**This repo is forked from [https://github.com/wg/wrk](https://github.com/wg/wrk).**
+
+**The rest part of readme is orginal version from wg/wrk.**
+
+---
+
 # wrk - a HTTP benchmarking tool
 
   wrk is a modern HTTP benchmarking tool capable of generating significant
@@ -30,17 +55,17 @@
 
     -c, --connections: total number of HTTP connections to keep open with
                        each thread handling N = connections/threads
-
+    
     -d, --duration:    duration of the test, e.g. 2s, 2m, 2h
-
+    
     -t, --threads:     total number of threads to use
-
+    
     -s, --script:      LuaJIT script, see SCRIPTING
-
+    
     -H, --header:      HTTP header to add to request, e.g. "User-Agent: wrk"
-
+    
         --latency:     print detailed latency statistics
-
+    
         --timeout:     record a timeout if a response is not received within
                        this amount of time.
 

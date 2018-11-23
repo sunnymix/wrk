@@ -13,6 +13,7 @@ static struct config {
     bool     delay;
     bool     dynamic;
     bool     latency;
+    bool     csv;
     char    *host;
     char    *script;
     SSL_CTX *ctx;
@@ -52,11 +53,76 @@ static void usage() {
            "    -H, --header      <H>  Add header to request      \n"
            "        --latency          Print latency statistics   \n"
            "        --timeout     <T>  Socket/request timeout     \n"
+           "        --csv              Print csv statistics       \n"
            "    -v, --version          Print version details      \n"
            "                                                      \n"
            "  Numeric arguments may include a SI unit (1k, 1M, 1G)\n"
            "  Time arguments may include a time unit (2s, 2m, 2h)\n");
 }
+
+// csv
+
+typedef struct csv {
+    int *size;
+    char *names;
+    char *values;
+} csv;
+
+static csv *csv_new() {
+    csv *c = (csv *) malloc(sizeof(csv));
+    c->size = 0;
+    c->names = "";
+    c->values = "";
+    return c;
+}
+
+static char *csv_join(char *dest, char *cat, char *sep) {
+    char *s = (char *) malloc(strlen(dest) + strlen(cat) + strlen(sep) + 1);
+    sprintf(s, "%s%s%s", dest, cat, sep);
+    return s;
+}
+
+static void csv_add(csv *c, char *name, char *value) {
+    char *gap = c->size > 0 ? ", " : "";
+    c->names = csv_join(c->names, gap, name);
+    c->values = csv_join(c->values, gap, value);
+    c->size++;
+}
+
+static void csv_print(csv *c) {
+    printf("  %s\n  %s\n", c->names, c->values);
+}
+
+// csv
+
+static void csv_add_u64(csv *c, char *name, uint64_t value) {
+    char *val = (char *) malloc(11);
+    sprintf(val, "%"PRIu64"", value);
+    csv_add(c, name, val);
+    free(val);
+    val = NULL;
+}
+
+static void csv_add_stats_mean(csv *c, char *name, stats *stats, char *(*fmt)(long double)) {
+    long double mean = stats_mean(stats);
+    csv_add(c, name, fmt(mean));
+}
+
+static void csv_add_latencies(csv *c, stats *stats) {
+    long double percentiles[] = { 99.0, 90.0, 75.0, 50.0 };
+    for (size_t i = 0; i < sizeof(percentiles) / sizeof(long double); i++) {
+        long double p = percentiles[i];
+        uint64_t n = stats_percentile(stats, p);
+        char *name = "";
+        name = (char *) malloc(6);
+        sprintf(name, "TP%2.0Lf%%", p);
+        csv_add(c, name, format_time_us(n));
+        free(name);
+        name = NULL;
+    }
+}
+
+// csv
 
 int main(int argc, char **argv) {
     char *url, **headers = zmalloc(argc * sizeof(char *));
@@ -135,8 +201,8 @@ int main(int argc, char **argv) {
     sigaction(SIGINT, &sa, NULL);
 
     char *time = format_time_s(cfg.duration);
-    printf("Running %s test @ %s\n", time, url);
-    printf("  %"PRIu64" threads and %"PRIu64" connections\n", cfg.threads, cfg.connections);
+    if (!cfg.csv) printf("Running %s test @ %s\n", time, url);
+    if (!cfg.csv) printf("  %"PRIu64" threads and %"PRIu64" connections\n", cfg.threads, cfg.connections);
 
     uint64_t start    = time_us();
     uint64_t complete = 0;
@@ -170,25 +236,39 @@ int main(int argc, char **argv) {
         stats_correct(statistics.latency, interval);
     }
 
-    print_stats_header();
-    print_stats("Latency", statistics.latency, format_time_us);
-    print_stats("Req/Sec", statistics.requests, format_metric);
-    if (cfg.latency) print_stats_latency(statistics.latency);
+    if (!cfg.csv) print_stats_header();
+    if (!cfg.csv) print_stats("Latency", statistics.latency, format_time_us);
+    if (!cfg.csv) print_stats("Req/Sec", statistics.requests, format_metric);
+    if (!cfg.csv && cfg.latency) print_stats_latency(statistics.latency);
 
     char *runtime_msg = format_time_us(runtime_us);
 
-    printf("  %"PRIu64" requests in %s, %sB read\n", complete, runtime_msg, format_binary(bytes));
+    if (!cfg.csv) printf("  %"PRIu64" requests in %s, %sB read\n", complete, runtime_msg, format_binary(bytes));
     if (errors.connect || errors.read || errors.write || errors.timeout) {
-        printf("  Socket errors: connect %d, read %d, write %d, timeout %d\n",
+        if (!cfg.csv) printf("  Socket errors: connect %d, read %d, write %d, timeout %d\n",
                errors.connect, errors.read, errors.write, errors.timeout);
     }
 
     if (errors.status) {
-        printf("  Non-2xx or 3xx responses: %d\n", errors.status);
+        if (!cfg.csv) printf("  Non-2xx or 3xx responses: %d\n", errors.status);
     }
 
-    printf("Requests/sec: %9.2Lf\n", req_per_s);
-    printf("Transfer/sec: %10sB\n", format_binary(bytes_per_s));
+    if (!cfg.csv) printf("Requests/sec: %9.2Lf\n", req_per_s);
+    if (!cfg.csv) printf("Transfer/sec: %10sB\n", format_binary(bytes_per_s));
+
+    if (cfg.csv) {
+        csv *c = csv_new();
+        csv_add(c, "URI", url);
+        csv_add_u64(c, "Threads", cfg.threads);
+        csv_add_u64(c, "Connections", cfg.connections);
+        csv_add(c, "Duration", time);
+        csv_add_stats_mean(c, "Mean-QPS", statistics.requests, format_metric);
+        csv_add_stats_mean(c, "Mean-Latency", statistics.latency, format_time_us);
+        csv_add(c, "QPS", format_metric(req_per_s));
+        csv_add_latencies(c, statistics.latency);
+        csv_add(c, "TPS", format_binary(bytes_per_s));
+        csv_print(c);
+    }
 
     if (script_has_done(L)) {
         script_summary(L, runtime_us, complete, bytes);
@@ -476,6 +556,7 @@ static struct option longopts[] = {
     { "timeout",     required_argument, NULL, 'T' },
     { "help",        no_argument,       NULL, 'h' },
     { "version",     no_argument,       NULL, 'v' },
+    { "csv",         no_argument,       NULL, 'z' },
     { NULL,          0,                 NULL,  0  }
 };
 
@@ -489,7 +570,7 @@ static int parse_args(struct config *cfg, char **url, struct http_parser_url *pa
     cfg->duration    = 10;
     cfg->timeout     = SOCKET_TIMEOUT_MS;
 
-    while ((c = getopt_long(argc, argv, "t:c:d:s:H:T:Lrv?", longopts, NULL)) != -1) {
+    while ((c = getopt_long(argc, argv, "t:c:d:s:z:H:T:Lrv?", longopts, NULL)) != -1) {
         switch (c) {
             case 't':
                 if (scan_metric(optarg, &cfg->threads)) return -1;
@@ -502,6 +583,9 @@ static int parse_args(struct config *cfg, char **url, struct http_parser_url *pa
                 break;
             case 's':
                 cfg->script = optarg;
+                break;
+            case 'z':
+                cfg->csv = true;
                 break;
             case 'H':
                 *header++ = optarg;
