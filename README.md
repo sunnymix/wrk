@@ -3,21 +3,17 @@
 
   Add csv output to wrk, which is more convenient for test reporting.
 
-  Csv output:
+  Print csv statistics:
 
   ```bash
-  > ./wrk -t1 -c1 -d3s --csv http://op.me
-  URI,Threads,Connections,Duration,Mean-QPS,Mean-Latency,QPS,TP99%,TP90%,TP75%,TP50%,TPS
-  http://op.me,1,1,3s,16.80k,54.20us,16.72k,85.00us,59.00us,54.00us,52.00us,3.88M
-  > 
+> wrk -t1 -c1 -d10s --csv http://op.me
+  URI, Threads, Connections, Duration, Mean-QPS, Mean-Latency, QPS, TP99%, TP90%, TP75%, TP50%, TPS
+  http://op.me, 1, 1, 10s, 16.63k, 58.10us, 16.54k, 82.00us, 58.00us, 54.00us, 53.00us, 3.84M
   ```
 
-  Export to csv file:
+  Combine csv statistics to a file:
 
-  | URI          | Threads | Connections | Duration | Mean-QPS | Mean-Latency | QPS    | TP99%   | TP90%   | TP75%   | TP50%   | TPS   |
-  | ------------ | ------- | ----------- | -------- | -------- | ------------ | ------ | ------- | ------- | ------- | ------- | ----- |
-  | http://op.me | 1       | 1           | 3s       | 16.80k   | 54.20us      | 16.72k | 85.00us | 59.00us | 54.00us | 52.00us | 3.88M |
-
+![wrk_csv_combine.png](http://sunnymix-10052526.picsh.myqcloud.com/public/wrk_csv_combine.png)
 
 ---
 
@@ -59,17 +55,17 @@
 
     -c, --connections: total number of HTTP connections to keep open with
                        each thread handling N = connections/threads
-
+    
     -d, --duration:    duration of the test, e.g. 2s, 2m, 2h
-
+    
     -t, --threads:     total number of threads to use
-
+    
     -s, --script:      LuaJIT script, see SCRIPTING
-
+    
     -H, --header:      HTTP header to add to request, e.g. "User-Agent: wrk"
-
+    
         --latency:     print detailed latency statistics
-
+    
         --timeout:     record a timeout if a response is not received within
                        this amount of time.
 
