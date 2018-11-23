@@ -60,103 +60,69 @@ static void usage() {
            "  Time arguments may include a time unit (2s, 2m, 2h)\n");
 }
 
-// ================ col ================
+// csv
 
-typedef struct col {
-    char *name;
-    char *value;
-    struct col *next;
-} col;
+typedef struct csv {
+    int *size;
+    char *names;
+    char *values;
+} csv;
 
-static char *col_names(col *c) {
-    col *p = c;
-    char *names = "", *sep = ",";
-    int i = 0;
-    while (p != NULL) {
-        char *ns = (char *) malloc(strlen(names) + strlen(p->name) + 10);
-        strcat(ns, names);
-        if (i > 0) strcat(ns, sep);
-        strcat(ns, p->name);
-        names = ns;
-        p = p->next;
-        i++;
-    }
-    return names;
-}
-
-static char *col_values(col *c) {
-    col *p = c;
-    char *values = "", *sep = ",";
-    int i = 0;
-    while (p != NULL) {
-        char *ns = (char *) malloc(strlen(values) + strlen(p->value) + 10);
-        strcat(ns, values);
-        if (i > 0) strcat(ns, sep);
-        strcat(ns, p->value);
-        values = ns;
-        p = p->next;
-        i++;
-    }
-    return values;
-}
-
-static void col_print(col *c) {
-    char *names = col_names(c), *values = col_values(c);
-    printf("\n%s\n%s\n\n", names, values);
-}
-
-static col *col_new() {
-    col *c = (col *) malloc(sizeof(col));
-    c->name = NULL;
-    c->value = NULL;
-    c->next = NULL;
+static csv *csv_new() {
+    csv *c = (csv *) malloc(sizeof(csv));
+    c->size = 0;
+    c->names = "";
+    c->values = "";
     return c;
 }
 
-static void col_add(col *c, char *name, char *value) {
-    // Do not modify c;
-    col * p = c;
-    while (p->next != NULL) p = p->next; // Move to the end;
-    if (p->name == NULL && p->value == NULL) { // Rewrite empty node;
-        p->name = name;
-        p->value = value;
-    } else { // Create new node;
-        p->next = (col *) malloc(sizeof(col));
-        p->next->name = name;
-        p->next->value = value;
-        p->next->next = NULL;
-    }
+static char *csv_join(char *dest, char *cat, char *sep) {
+    char *s = (char *) malloc(strlen(dest) + strlen(cat) + strlen(sep) + 1);
+    sprintf(s, "%s%s%s", dest, cat, sep);
+    return s;
 }
 
-// ················ col ················
+static void csv_add(csv *c, char *name, char *value) {
+    char *gap = c->size > 0 ? ", " : "";
+    c->names = csv_join(c->names, gap, name);
+    c->values = csv_join(c->values, gap, value);
+    c->size++;
+}
 
-// ================ col extend ================
+static void csv_print(csv *c) {
+    printf("  %s\n  %s\n", c->names, c->values);
+}
 
-static void col_add_u64(col *c, char *name, uint64_t value) {
-    char *val = "";
-    val = (char *) malloc(20);
+// csv
+
+static void csv_add_u64(csv *c, char *name, uint64_t value) {
+    char *val = (char *) malloc(11);
     sprintf(val, "%"PRIu64"", value);
-    col_add(c, name, val);
+    csv_add(c, name, val);
+    free(val);
+    val = NULL;
 }
 
-static void col_add_stats_mean(col *c, char *name, stats *stats, char *(*fmt)(long double)) {
+static void csv_add_stats_mean(csv *c, char *name, stats *stats, char *(*fmt)(long double)) {
     long double mean = stats_mean(stats);
-    col_add(c, name, fmt(mean));
+    csv_add(c, name, fmt(mean));
 }
 
-static void col_add_latencies(col *c, stats *stats) {
+static void csv_add_latencies(csv *c, stats *stats) {
     long double percentiles[] = { 99.0, 90.0, 75.0, 50.0 };
     for (size_t i = 0; i < sizeof(percentiles) / sizeof(long double); i++) {
         long double p = percentiles[i];
         uint64_t n = stats_percentile(stats, p);
         char *name = "";
-        name = (char *) malloc(20);
+        name = (char *) malloc(6);
         sprintf(name, "TP%2.0Lf%%", p);
-        col_add(c, name, format_time_us(n));
+        csv_add(c, name, format_time_us(n));
+        free(name);
+        name = NULL;
     }
 }
 
-// ················ col extend ················
+// csv
 
 int main(int argc, char **argv) {
     char *url, **headers = zmalloc(argc * sizeof(char *));
@@ -291,17 +257,17 @@ int main(int argc, char **argv) {
     if (!cfg.csv) printf("Transfer/sec: %10sB\n", format_binary(bytes_per_s));
 
     if (cfg.csv) {
-        col *c = col_new();
-        col_add(c, "URI", url);
-        col_add_u64(c, "Threads", cfg.threads);
-        col_add_u64(c, "Connections", cfg.connections);
-        col_add(c, "Duration", time);
-        col_add_stats_mean(c, "Mean-QPS", statistics.requests, format_metric);
-        col_add_stats_mean(c, "Mean-Latency", statistics.latency, format_time_us);
-        col_add(c, "QPS", format_metric(req_per_s));
-        col_add_latencies(c, statistics.latency);
-        col_add(c, "TPS", format_binary(bytes_per_s));
-        col_print(c);
+        csv *c = csv_new();
+        csv_add(c, "URI", url);
+        csv_add_u64(c, "Threads", cfg.threads);
+        csv_add_u64(c, "Connections", cfg.connections);
+        csv_add(c, "Duration", time);
+        csv_add_stats_mean(c, "Mean-QPS", statistics.requests, format_metric);
+        csv_add_stats_mean(c, "Mean-Latency", statistics.latency, format_time_us);
+        csv_add(c, "QPS", format_metric(req_per_s));
+        csv_add_latencies(c, statistics.latency);
+        csv_add(c, "TPS", format_binary(bytes_per_s));
+        csv_print(c);
     }
 
     if (script_has_done(L)) {
