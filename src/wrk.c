@@ -278,6 +278,7 @@ int main(int argc, char **argv) {
         csv_add_u64(c, "Threads", cfg.threads);
         csv_add_u64(c, "Connections", cfg.connections);
         csv_add(c, "Duration", time);
+        csv_add_u64(c, "Requests", complete);
         csv_add_stats_mean(c, "Mean-QPS", statistics.requests, format_metric);
         csv_add_stats_mean(c, "Mean-Latency", statistics.latency, format_time_us);
         csv_add(c, "QPS", format_metric(req_per_s));
