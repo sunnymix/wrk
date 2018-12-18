@@ -11,9 +11,7 @@
   http://op.me, 1, 1, 10s, 16.63k, 58.10us, 16.54k, 82.00us, 58.00us, 54.00us, 53.00us, 3.84M
   ```
 
-  Combine csv statistics to a file:
-
-![wrk_csv_combine.png](http://sunnymix-10052526.picsh.myqcloud.com/public/wrk_csv_combine.png)
+  Combine csv statistics to a file.
 
 ---
 

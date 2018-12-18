@@ -93,7 +93,7 @@ static void csv_print(csv *c) {
     printf("  %s\n  %s\n", c->names, c->values);
 }
 
-// csv
+// csv >
 
 static void csv_add_u64(csv *c, char *name, uint64_t value) {
     char *val = (char *) malloc(21);
@@ -123,7 +123,7 @@ static void csv_add_latencies(csv *c, stats *stats) {
         uint64_t n = stats_percentile(stats, p);
         char *name = "";
         name = (char *) malloc(6);
-        sprintf(name, "TP%2.0Lf%%", p);
+        sprintf(name, "P%2.0Lf", p);
         csv_add(c, name, format_time_us(n));
         free(name);
         name = NULL;
@@ -131,14 +131,14 @@ static void csv_add_latencies(csv *c, stats *stats) {
 }
 
 static void csv_add_errors(csv *c, errors errs) {
-    csv_add_u32(c, "Error-Connect", errs.connect);
-    csv_add_u32(c, "Error-Read", errs.read);
-    csv_add_u32(c, "Error-Write", errs.write);
-    csv_add_u32(c, "Error-Timeout", errs.timeout);
-    csv_add_u32(c, "Error-Status!=2/3xx", errs.status);
+    csv_add_u32(c, "Err-Connect", errs.connect);
+    csv_add_u32(c, "Err-Read", errs.read);
+    csv_add_u32(c, "Err-Write", errs.write);
+    csv_add_u32(c, "Err-Timeout", errs.timeout);
+    csv_add_u32(c, "Err-Status", errs.status);
 }
 
-// csv
+// < csv
 
 int main(int argc, char **argv) {
     char *url, **headers = zmalloc(argc * sizeof(char *));
@@ -274,16 +274,13 @@ int main(int argc, char **argv) {
 
     if (cfg.csv) {
         csv *c = csv_new();
-        csv_add(c, "URI", url);
+        csv_add(c, "URL", url);
         csv_add_u64(c, "Threads", cfg.threads);
-        csv_add_u64(c, "Connections", cfg.connections);
-        csv_add(c, "Duration", time);
-        csv_add_u64(c, "Requests", complete);
-        csv_add_stats_mean(c, "Mean-QPS", statistics.requests, format_metric);
-        csv_add_stats_mean(c, "Mean-Latency", statistics.latency, format_time_us);
+        csv_add_u64(c, "Conns", cfg.connections);
+        csv_add(c, "Dur", time);
+        csv_add_u64(c, "Reqs", complete);
         csv_add(c, "QPS", format_metric(req_per_s));
         csv_add_latencies(c, statistics.latency);
-        csv_add(c, "TPS", format_binary(bytes_per_s));
         csv_add_errors(c, errors);
         csv_print(c);
     }
