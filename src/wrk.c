@@ -90,7 +90,7 @@ static void csv_add(csv *c, char *name, char *value) {
 }
 
 static void csv_print(csv *c) {
-    printf("  %s\n  %s\n", c->names, c->values);
+    printf("%s\n%s\n", c->names, c->values);
 }
 
 // csv >
