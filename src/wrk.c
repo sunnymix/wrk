@@ -131,11 +131,7 @@ static void csv_add_latencies(csv *c, stats *stats) {
 }
 
 static void csv_add_errors(csv *c, errors errs) {
-    csv_add_u32(c, "Err-Connect", errs.connect);
-    csv_add_u32(c, "Err-Read", errs.read);
-    csv_add_u32(c, "Err-Write", errs.write);
-    csv_add_u32(c, "Err-Timeout", errs.timeout);
-    csv_add_u32(c, "Err-Status", errs.status);
+    csv_add_u32(c, "Errors", errs.connect + errs.read + errs.write + errs.timeout + errs.status);
 }
 
 // < csv
